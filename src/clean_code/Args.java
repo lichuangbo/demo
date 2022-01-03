@@ -16,9 +16,7 @@ public class Args {
   private String[] args;
   private boolean valid;
   private Set<Character> unexpectedArguments = new TreeSet<>();
-  private Map<Character, ArgumentMarshaler> booleanArgs = new HashMap<>();
-  private Map<Character, ArgumentMarshaler> stringArgs = new HashMap<>();
-  private Map<Character, ArgumentMarshaler> intArgs = new HashMap<>();
+  private Map<Character, ArgumentMarshaler> marshalers = new HashMap<>();
   private List<Character> argsFound = new ArrayList<>();
   private int currentArgument;
   private char errorArgument = '\0';
@@ -75,7 +73,7 @@ public class Args {
   }
 
   private void parseBooleanSchemaElement(char elementId) {
-    booleanArgs.put(elementId, new BooleanArgumentMarshaler());
+    marshalers.put(elementId, new BooleanArgumentMarshaler());
   }
 
   private boolean isStringSchemaElement(String elementTail) {
@@ -83,7 +81,7 @@ public class Args {
   }
 
   private void parseStringSchemaElement(char elementId) {
-    stringArgs.put(elementId, new StringArgumentMarshaler());
+    marshalers.put(elementId, new StringArgumentMarshaler());
   }
 
   private boolean isIntegerSchemaElement(String elementTail) {
@@ -91,7 +89,7 @@ public class Args {
   }
 
   private void parseIntegerSchemaElement(char elementId) {
-    intArgs.put(elementId, new IntegerArgumentMarshaler());
+    marshalers.put(elementId, new IntegerArgumentMarshaler());
   }
 
   private boolean parseArguments() throws ArgsException {
@@ -124,71 +122,60 @@ public class Args {
   }
 
   private boolean setArgument(char argChar) throws ArgsException {
+    ArgumentMarshaler am = marshalers.get(argChar);
     boolean setSuccess = true;
-    if (isBoolean(argChar)) {
-      setBooleanArg(argChar);
-    } else if (isString(argChar)) {
-      setStringArg(argChar);
-    } else if (isInt(argChar)) {
-      setIntArg(argChar);
-    } else {
-      setSuccess = false;
+    try {
+      if (am instanceof BooleanArgumentMarshaler) {
+        setBooleanArg(am);
+      } else if (am instanceof StringArgumentMarshaler) {
+        setStringArg(am);
+      } else if (am instanceof IntegerArgumentMarshaler) {
+        setIntArg(am);
+      } else {
+        setSuccess = false;
+      }
+    } catch (ArgsException e) {
+      valid = false;
+      errorArgument = argChar;
+      throw e;
     }
 
     return setSuccess;
   }
 
-  private boolean isBoolean(char argChar) {
-    return booleanArgs.containsKey(argChar);
-  }
-
-  private boolean isString(char argChar) {
-    return stringArgs.containsKey(argChar);
-  }
-
-  private boolean isInt(char argChar) {
-    return intArgs.containsKey(argChar);
-  }
-
-  private void setBooleanArg(char argChar) {
+  private void setBooleanArg(ArgumentMarshaler am) {
     try {
-      booleanArgs.get(argChar).set("true");
+      am.set("true");
     } catch (ArgsException e) {
       e.printStackTrace();
     }
   }
 
-  private void setStringArg(char argChar) {
+  private void setStringArg(ArgumentMarshaler am) {
     // -d与-l不同，-d后可以追加字符串，不追加默认字符串为空
     // 定义全部变量是为了跳过[追加的字符串]，进入下一个命令
     currentArgument++;
     try {
-      stringArgs.get(argChar).set(args[currentArgument]);
+      am.set(args[currentArgument]);
       // 当出现数组越界异常时，说明命令后没有追加字符串，记录起来
     } catch (ArrayIndexOutOfBoundsException e) {
-      valid = false;
-      errorArgument = argChar;
       errorCode = ErrorCode.MISSING_STRING;
     } catch (ArgsException e) {
       e.printStackTrace();
     }
   }
 
-  private void setIntArg(char argChar) throws ArgsException {
+  private void setIntArg(ArgumentMarshaler am) throws ArgsException {
     currentArgument++;
     String parameter = null;
     try {
       parameter = args[currentArgument];
       // 数值类型的解析异常，下沉到了IntegerArgumentMarshaler中去处理
-      intArgs.get(argChar).set(parameter);
+      am.set(parameter);
     } catch (ArrayIndexOutOfBoundsException e) {
-      valid = false;
-      errorArgument = argChar;
       errorCode = ErrorCode.MISSING_STRING;
       throw new ArgsException();
     } catch (ArgsException e) {
-      valid = false;
-      errorArgument = argChar;
       errorCode = ErrorCode.INVALID_INTEGER;
       throw e;
     }
@@ -207,17 +194,17 @@ public class Args {
   }
 
   public boolean getBoolean(char arg) {
-    ArgumentMarshaler argumentMarshaler = booleanArgs.get(arg);
+    ArgumentMarshaler argumentMarshaler = marshalers.get(arg);
     return argumentMarshaler != null && (Boolean) argumentMarshaler.get();
   }
 
   public String getString(char arg) {
-    ArgumentMarshaler argumentMarshaler = stringArgs.get(arg);
+    ArgumentMarshaler argumentMarshaler = marshalers.get(arg);
     return argumentMarshaler == null ? "" : (String) argumentMarshaler.get();
   }
 
   public int getInt(char arg) {
-    ArgumentMarshaler argumentMarshaler = intArgs.get(arg);
+    ArgumentMarshaler argumentMarshaler = marshalers.get(arg);
     return argumentMarshaler == null ? 0 : (Integer) argumentMarshaler.get();
   }
 
