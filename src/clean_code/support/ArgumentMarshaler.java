@@ -1,31 +1,10 @@
 package clean_code.support;
 
-public class ArgumentMarshaler {
-  private boolean booleanValue = false;
-  private String stringValue = "";
-  private int intValue = 0;
+import clean_code.exception.ArgsException;
 
-  public boolean getBoolean() {
-    return booleanValue;
-  }
+public abstract class ArgumentMarshaler {
 
-  public void setBoolean(boolean value) {
-    this.booleanValue = value;
-  }
+  public abstract void set(String s) throws ArgsException;
 
-  public String getString() {
-    return stringValue;
-  }
-
-  public void setString(String value) {
-    this.stringValue = value;
-  }
-
-  public int getInt() {
-    return intValue;
-  }
-
-  public void setInt(int value) {
-    this.intValue = value;
-  }
+  public abstract Object get();
 }

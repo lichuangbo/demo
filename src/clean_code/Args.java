@@ -126,7 +126,7 @@ public class Args {
   private boolean setArgument(char argChar) throws ArgsException {
     boolean setSuccess = true;
     if (isBoolean(argChar)) {
-      setBooleanArg(argChar, true);
+      setBooleanArg(argChar);
     } else if (isString(argChar)) {
       setStringArg(argChar);
     } else if (isInt(argChar)) {
@@ -136,10 +136,6 @@ public class Args {
     }
 
     return setSuccess;
-  }
-
-  private void setBooleanArg(char argChar, boolean value) {
-    booleanArgs.get(argChar).setBoolean(value);
   }
 
   private boolean isBoolean(char argChar) {
@@ -154,17 +150,27 @@ public class Args {
     return intArgs.containsKey(argChar);
   }
 
+  private void setBooleanArg(char argChar) {
+    try {
+      booleanArgs.get(argChar).set("true");
+    } catch (ArgsException e) {
+      e.printStackTrace();
+    }
+  }
+
   private void setStringArg(char argChar) {
     // -d与-l不同，-d后可以追加字符串，不追加默认字符串为空
     // 定义全部变量是为了跳过[追加的字符串]，进入下一个命令
     currentArgument++;
     try {
-      stringArgs.get(argChar).setString(args[currentArgument]);
+      stringArgs.get(argChar).set(args[currentArgument]);
       // 当出现数组越界异常时，说明命令后没有追加字符串，记录起来
     } catch (ArrayIndexOutOfBoundsException e) {
       valid = false;
       errorArgument = argChar;
       errorCode = ErrorCode.MISSING_STRING;
+    } catch (ArgsException e) {
+      e.printStackTrace();
     }
   }
 
@@ -173,22 +179,46 @@ public class Args {
     String parameter = null;
     try {
       parameter = args[currentArgument];
-      intArgs.get(argChar).setInt(Integer.parseInt(parameter));
+      // 数值类型的解析异常，下沉到了IntegerArgumentMarshaler中去处理
+      intArgs.get(argChar).set(parameter);
     } catch (ArrayIndexOutOfBoundsException e) {
       valid = false;
       errorArgument = argChar;
       errorCode = ErrorCode.MISSING_STRING;
       throw new ArgsException();
-    } catch (NumberFormatException e) {
+    } catch (ArgsException e) {
       valid = false;
       errorArgument = argChar;
       errorCode = ErrorCode.INVALID_INTEGER;
-      throw new ArgsException();
+      throw e;
     }
   }
 
   public int cardinality() {
     return argsFound.size();
+  }
+
+  public String usage() {
+    if (schema.length() > 0) {
+      return "-[" + schema + "]";
+    } else {
+      return "";
+    }
+  }
+
+  public boolean getBoolean(char arg) {
+    ArgumentMarshaler argumentMarshaler = booleanArgs.get(arg);
+    return argumentMarshaler != null && (Boolean) argumentMarshaler.get();
+  }
+
+  public String getString(char arg) {
+    ArgumentMarshaler argumentMarshaler = stringArgs.get(arg);
+    return argumentMarshaler == null ? "" : (String) argumentMarshaler.get();
+  }
+
+  public int getInt(char arg) {
+    ArgumentMarshaler argumentMarshaler = intArgs.get(arg);
+    return argumentMarshaler == null ? 0 : (Integer) argumentMarshaler.get();
   }
 
   public String errorMessage() throws Exception {
@@ -205,24 +235,6 @@ public class Args {
     }
   }
 
-  public String usage() {
-    if (schema.length() > 0) {
-      return "-[" + schema + "]";
-    } else {
-      return "";
-    }
-  }
-
-  public boolean getBoolean(char arg) {
-    ArgumentMarshaler argumentMarshaler = booleanArgs.get(arg);
-    return argumentMarshaler != null && argumentMarshaler.getBoolean();
-  }
-
-  public int getInt(char arg) {
-    ArgumentMarshaler argumentMarshaler = intArgs.get(arg);
-    return argumentMarshaler == null ? 0 : argumentMarshaler.getInt();
-  }
-
   private String unexpectedArgumentMessage() {
     StringBuilder message = new StringBuilder("Argument(s) -");
     for (char c : unexpectedArguments) {
@@ -231,11 +243,6 @@ public class Args {
     message.append(" unexpected.");
 
     return message.toString();
-  }
-
-  public String getString(char arg) {
-    ArgumentMarshaler argumentMarshaler = stringArgs.get(arg);
-    return argumentMarshaler == null ? "" : argumentMarshaler.getString();
   }
 
   public boolean has(char arg) {
