@@ -12,24 +12,24 @@ import java.util.*;
 
 
 public class Args {
-  private String schema;
-  private String[] args;
+  private final String schema;
   private boolean valid;
-  private Set<Character> unexpectedArguments = new TreeSet<>();
-  private Map<Character, ArgumentMarshaler> marshalers = new HashMap<>();
-  private List<Character> argsFound = new ArrayList<>();
-  private int currentArgument;
+  private final Set<Character> unexpectedArguments = new TreeSet<>();
+  private final Map<Character, ArgumentMarshaler> marshalers = new HashMap<>();
+  private final List<Character> argsFound = new ArrayList<>();
+  private final List<String> argsList;
+  private Iterator<String> currentArgument;
   private char errorArgument = '\0';
   private ErrorCode errorCode = ErrorCode.OK;
 
   public Args(String schema, String[] args) throws ParseException, ArgsException {
     this.schema = schema;
-    this.args = args;
+    this.argsList = Arrays.asList(args);
     valid = parse();
   }
 
   private boolean parse() throws ParseException, ArgsException {
-    if (schema.length() == 0 && args.length == 0) {
+    if (schema.length() == 0 && argsList.size() == 0) {
       return true;
     }
     parseSchema();
@@ -52,12 +52,14 @@ public class Args {
     validateSchemaElementId(elementId);
     // 按照规则截取字符串，判断单个schema类型，l:布尔,p#:整数,d*:字符串
     String elementTail = element.substring(1);
-    if (isBooleanSchemaElement(elementTail)) {
-      parseBooleanSchemaElement(elementId);
-    } else if (isStringSchemaElement(elementTail)) {
-      parseStringSchemaElement(elementId);
-    } else if (isIntegerSchemaElement(elementTail)) {
-      parseIntegerSchemaElement(elementId);
+    if (elementTail.length() == 0) {
+      marshalers.put(elementId, new BooleanArgumentMarshaler());
+    } else if (elementTail.equals("*")) {
+      marshalers.put(elementId, new StringArgumentMarshaler());
+    } else if (elementTail.equals("#")) {
+      marshalers.put(elementId, new IntegerArgumentMarshaler());
+    } else {
+      throw new ParseException(String.format("Argument: %c has invalid format: %s.", elementId, elementTail), 0);
     }
   }
 
@@ -68,33 +70,9 @@ public class Args {
     }
   }
 
-  private boolean isBooleanSchemaElement(String elementTail) {
-    return elementTail.length() == 0;
-  }
-
-  private void parseBooleanSchemaElement(char elementId) {
-    marshalers.put(elementId, new BooleanArgumentMarshaler());
-  }
-
-  private boolean isStringSchemaElement(String elementTail) {
-    return elementTail.equals("*");
-  }
-
-  private void parseStringSchemaElement(char elementId) {
-    marshalers.put(elementId, new StringArgumentMarshaler());
-  }
-
-  private boolean isIntegerSchemaElement(String elementTail) {
-    return elementTail.equals("#");
-  }
-
-  private void parseIntegerSchemaElement(char elementId) {
-    marshalers.put(elementId, new IntegerArgumentMarshaler());
-  }
-
   private boolean parseArguments() throws ArgsException {
-    for (currentArgument = 0; currentArgument < args.length; currentArgument++) {
-      String arg = args[currentArgument];
+    for (currentArgument = argsList.iterator(); currentArgument.hasNext(); ) {
+      String arg = currentArgument.next();
       parseArgument(arg);
     }
     return true;
@@ -123,16 +101,16 @@ public class Args {
 
   private boolean setArgument(char argChar) throws ArgsException {
     ArgumentMarshaler am = marshalers.get(argChar);
-    boolean setSuccess = true;
+    if (am == null) {
+      return false;
+    }
     try {
       if (am instanceof BooleanArgumentMarshaler) {
-        setBooleanArg(am);
+        am.set(currentArgument);
       } else if (am instanceof StringArgumentMarshaler) {
-        setStringArg(am);
+        am.set(currentArgument);
       } else if (am instanceof IntegerArgumentMarshaler) {
-        setIntArg(am);
-      } else {
-        setSuccess = false;
+        am.set(currentArgument);
       }
     } catch (ArgsException e) {
       valid = false;
@@ -140,45 +118,7 @@ public class Args {
       throw e;
     }
 
-    return setSuccess;
-  }
-
-  private void setBooleanArg(ArgumentMarshaler am) {
-    try {
-      am.set("true");
-    } catch (ArgsException e) {
-      e.printStackTrace();
-    }
-  }
-
-  private void setStringArg(ArgumentMarshaler am) {
-    // -d与-l不同，-d后可以追加字符串，不追加默认字符串为空
-    // 定义全部变量是为了跳过[追加的字符串]，进入下一个命令
-    currentArgument++;
-    try {
-      am.set(args[currentArgument]);
-      // 当出现数组越界异常时，说明命令后没有追加字符串，记录起来
-    } catch (ArrayIndexOutOfBoundsException e) {
-      errorCode = ErrorCode.MISSING_STRING;
-    } catch (ArgsException e) {
-      e.printStackTrace();
-    }
-  }
-
-  private void setIntArg(ArgumentMarshaler am) throws ArgsException {
-    currentArgument++;
-    String parameter = null;
-    try {
-      parameter = args[currentArgument];
-      // 数值类型的解析异常，下沉到了IntegerArgumentMarshaler中去处理
-      am.set(parameter);
-    } catch (ArrayIndexOutOfBoundsException e) {
-      errorCode = ErrorCode.MISSING_STRING;
-      throw new ArgsException();
-    } catch (ArgsException e) {
-      errorCode = ErrorCode.INVALID_INTEGER;
-      throw e;
-    }
+    return true;
   }
 
   public int cardinality() {
