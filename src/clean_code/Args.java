@@ -2,10 +2,7 @@ package clean_code;
 
 import clean_code.enums.ErrorCode;
 import clean_code.exception.ArgsException;
-import clean_code.support.ArgumentMarshaler;
-import clean_code.support.BooleanArgumentMarshaler;
-import clean_code.support.IntegerArgumentMarshaler;
-import clean_code.support.StringArgumentMarshaler;
+import clean_code.support.*;
 
 import java.text.ParseException;
 import java.util.*;
@@ -58,6 +55,8 @@ public class Args {
       marshalers.put(elementId, new StringArgumentMarshaler());
     } else if (elementTail.equals("#")) {
       marshalers.put(elementId, new IntegerArgumentMarshaler());
+    } else if (elementTail.equals("##")) {
+      marshalers.put(elementId, new DoubleArgumentMarshaler());
     } else {
       throw new ParseException(String.format("Argument: %c has invalid format: %s.", elementId, elementTail), 0);
     }
@@ -105,13 +104,7 @@ public class Args {
       return false;
     }
     try {
-      if (am instanceof BooleanArgumentMarshaler) {
-        am.set(currentArgument);
-      } else if (am instanceof StringArgumentMarshaler) {
-        am.set(currentArgument);
-      } else if (am instanceof IntegerArgumentMarshaler) {
-        am.set(currentArgument);
-      }
+      am.set(currentArgument);
     } catch (ArgsException e) {
       valid = false;
       errorArgument = argChar;
@@ -148,6 +141,11 @@ public class Args {
     return argumentMarshaler == null ? 0 : (Integer) argumentMarshaler.get();
   }
 
+  public double getDouble(char arg) {
+    ArgumentMarshaler argumentMarshaler = marshalers.get(arg);
+    return argumentMarshaler == null ? 0.0d : (Double) argumentMarshaler.get();
+  }
+
   public String errorMessage() throws Exception {
     if (unexpectedArguments.size() > 0) {
       return unexpectedArgumentMessage();
@@ -155,6 +153,14 @@ public class Args {
       switch (errorCode) {
         case MISSING_STRING:
           return String.format("Could not find string parameter for -%c.", errorArgument);
+        case MISSING_INTEGER:
+          return String.format("Could not find integer parameter for -%c.", errorArgument);
+        case MISSING_DOUBLE:
+          return String.format("Could not find double parameter for -%c.", errorArgument);
+        case INVALID_INTEGER:
+          return String.format("Argument -%c expects an integer but was '%s'.", errorArgument, errorArgument);
+        case INVALID_DOUBLE:
+          return String.format("Argument -%c expects a double but was '%s'.", errorArgument, errorArgument);
         case OK:
           throw new Exception("TILT: should not get here.");
       }

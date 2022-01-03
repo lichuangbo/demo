@@ -11,8 +11,6 @@ public abstract class ArgumentMarshaler {
 
   protected String errorParameter = "TILT";
 
-  public abstract void set(String s) throws ArgsException;
-
   public abstract Object get();
 
   public abstract void set(Iterator<String> currentArgument) throws ArgsException;

@@ -16,7 +16,7 @@ public class ArgsTest {
 //      myArgs = new Args("l,d*", new String[]{"-l", "-d"});
 //      myArgs = new Args("l,d*", new String[]{"-d", "/usr/local"});
 //      myArgs = new Args("y", new String[]{"-d", "/usr/local"});
-      myArgs = new Args("l,d*,p#", new String[]{"-l", "-d", "/usr/local", "-p", "8080"});
+      myArgs = new Args("l,d*,p#,x##", new String[]{"-l", "-d", "/usr/local", "-p", "8080", "-x", "42.3"});
     } catch (ParseException e) {
       e.printStackTrace();
     } catch (ArgsException e) {
@@ -28,6 +28,8 @@ public class ArgsTest {
     System.out.println("result:" + p2);
     int p3 = myArgs.getInt('p');
     System.out.println("result:" + p3);
+    double p4 = myArgs.getDouble('x');
+    System.out.println("result:" + p4);
 
     System.out.println("valid:" + myArgs.isValid());
     System.out.println("valid arguments:" + myArgs.cardinality());

@@ -6,13 +6,13 @@ import clean_code.exception.ArgsException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class IntegerArgumentMarshaler extends ArgumentMarshaler {
+public class DoubleArgumentMarshaler extends ArgumentMarshaler {
 
-  private int intValue = 0;
+  private double doubleValue;
 
   @Override
   public Object get() {
-    return intValue;
+    return doubleValue;
   }
 
   @Override
@@ -20,12 +20,12 @@ public class IntegerArgumentMarshaler extends ArgumentMarshaler {
     String parameter = null;
     try {
       parameter = currentArgument.next();
-      intValue = Integer.parseInt(parameter);
+      doubleValue = Double.parseDouble(parameter);
     } catch (NoSuchElementException e) {
-      errorCode = ErrorCode.MISSING_STRING;
+      errorCode = ErrorCode.MISSING_DOUBLE;
       throw new ArgsException();
     } catch (NumberFormatException e) {
-      errorCode = ErrorCode.INVALID_INTEGER;
+      errorCode = ErrorCode.INVALID_DOUBLE;
       errorParameter = parameter;
       throw new ArgsException();
     }
